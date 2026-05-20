@@ -1,93 +1,242 @@
-# shivtushal2024-project
+# Flask CI/CD Pipeline with GitLab and Docker
 
+This project demonstrates a complete CI/CD workflow using:
 
+- Flask
+- Docker
+- GitLab CI/CD
+- Docker Hub
+- AWS EC2
+- Automated Deployment
 
-## Getting started
+---
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+# Project Architecture
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
+```text
+Developer Pushes Code
+        ↓
+GitLab Pipeline Triggered
+        ↓
+Test Stage
+        ↓
+Build Docker Image
+        ↓
+Push Image to Docker Hub
+        ↓
+Deploy to AWS EC2
+        ↓
+Run Flask Container
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/shivtushal2024-group/shivtushal2024-project.git
-git branch -M main
-git push -uf origin main
+
+---
+
+# Technologies Used
+
+- Python 3.11
+- Flask
+- Docker
+- GitLab CI/CD
+- AWS EC2
+- Docker Hub
+- Linux
+- YAML Pipelines
+
+---
+
+# CI/CD Pipeline Stages
+
+## 1. Test Stage
+
+The pipeline validates the Flask application before deployment.
+
+### Tasks Performed
+- Install dependencies
+- Validate Python syntax
+- Run automated checks
+
+---
+
+## 2. Build Stage
+
+The pipeline:
+- Builds Docker image
+- Tags the image
+- Pushes image to Docker Hub
+
+### Docker Image
+
+```text
+shivtushal/git-lab:python-app-1.0
 ```
 
-## Integrate with your tools
+---
 
-* [Set up project integrations](https://gitlab.com/shivtushal2024-group/shivtushal2024-project/-/settings/integrations)
+## 3. Deploy Stage
 
-## Collaborate with your team
+The pipeline:
+- Connects to AWS EC2 using SSH
+- Stops old containers
+- Pulls latest Docker image
+- Runs updated Flask application
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+---
 
-## Test and Deploy
+# GitLab CI/CD Pipeline
 
-Use the built-in continuous integration in GitLab.
+```yaml
+variables:
+  IMAGE_NAME: shivtushal/git-lab
+  IMAGE_TAG: python-app-1.0
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+stages:
+  - test
+  - build
+  - deploy
 
-***
+run_tests:
+  stage: test
 
-# Editing this README
+  image: python:3.11
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+  before_script:
+    - pip install flask pytest
 
-## Suggestions for a good README
+  script:
+    - python -m py_compile app.py
+    - echo "Flask application syntax validation successful"
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+build_image:
+  stage: build
 
-## Name
-Choose a self-explaining name for your project.
+  image: docker:20.10.16
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+  services:
+    - docker:20.10.16-dind
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+  before_script:
+    - docker login -u $REGISTRY_USER -p $REGISTRY_PASS
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+  script:
+    - docker build -t $IMAGE_NAME:$IMAGE_TAG .
+    - docker push $IMAGE_NAME:$IMAGE_TAG
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+  needs:
+    - run_tests
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+deploy:
+  stage: deploy
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+  image: alpine:latest
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+  before_script:
+    - apk add --no-cache openssh-client
+    - chmod 400 $SSH_KEY
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+  script:
+    - ssh -o StrictHostKeyChecking=no -i $SSH_KEY ubuntu@13.232.167.146 "
+        sudo docker login -u $REGISTRY_USER -p $REGISTRY_PASS &&
+        sudo docker ps -aq | xargs -r sudo docker stop | xargs -r sudo docker rm &&
+        sudo docker run -d -p 5000:5000 $IMAGE_NAME:$IMAGE_TAG
+      "
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+  needs:
+    - build_image
+```
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+---
 
-## License
-For open source projects, say how it is licensed.
+# Dockerfile
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+```dockerfile
+FROM python:3.11
+
+WORKDIR /app
+
+COPY . .
+
+RUN pip install flask
+
+EXPOSE 5000
+
+CMD ["python3", "app.py"]
+```
+
+---
+
+# AWS EC2 Deployment
+
+The Flask application is deployed automatically to an AWS EC2 instance using SSH-based deployment automation.
+
+### EC2 Features
+- Dockerized deployment
+- Automated container replacement
+- Continuous deployment through GitLab CI/CD
+
+---
+
+# Docker Commands Used
+
+## Build Docker Image
+
+```bash
+docker build -t shivtushal/git-lab:python-app-1.0 .
+```
+
+## Push Docker Image
+
+```bash
+docker push shivtushal/git-lab:python-app-1.0
+```
+
+## Run Container
+
+```bash
+docker run -d -p 5000:5000 shivtushal/git-lab:python-app-1.0
+```
+
+---
+
+# Features
+
+- Automated CI/CD pipeline
+- Docker containerization
+- Automated deployment to AWS EC2
+- Multi-stage GitLab pipeline
+- Real-time deployment workflow
+- Flask web application hosting
+
+---
+
+# Learning Outcomes
+
+Through this project, I learned:
+
+- GitLab CI/CD pipelines
+- Docker containerization
+- YAML pipeline configuration
+- Automated deployments
+- AWS EC2 deployment automation
+- SSH-based remote deployments
+- Docker Hub integration
+- DevOps workflow automation
+
+---
+
+# Future Improvements
+
+- Add unit testing with Pytest
+- Add Kubernetes deployment
+- Add NGINX reverse proxy
+- Add HTTPS using SSL
+- Add monitoring and logging
+- Deploy using Kubernetes or ECS
+
+---
+
+# Author
+
+Shiv Tushal

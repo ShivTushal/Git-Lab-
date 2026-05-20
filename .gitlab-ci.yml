@@ -1,0 +1,60 @@
+variables:
+  IMAGE_NAME: shivtushal/git-lab
+  IMAGE_TAG: python-app-1.0
+
+stages:
+  - test
+  - build
+  - deploy
+
+run_tests:
+  stage: test
+
+  image: python:3.11
+
+  before_script:
+    - apt-get update
+    - apt-get install -y make
+
+  script:
+    - echo "Pipeline successful"
+
+build_image:
+  stage: build
+
+  image: docker:20.10.16
+
+  services:
+    - docker:20.10.16-dind
+
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+
+  before_script:
+    - docker login -u $REGISTRY_USER -p $REGISTRY_PASS
+
+  script:
+    - docker build -t $IMAGE_NAME:$IMAGE_TAG .
+    - docker push $IMAGE_NAME:$IMAGE_TAG
+
+  needs:
+    - run_tests
+
+deploy:
+  stage: deploy
+
+  image: alpine:latest
+
+  before_script:
+    - apk add --no-cache openssh-client
+    - chmod 400 $SSH_KEY
+
+  script:
+    - ssh -o StrictHostKeyChecking=no -i $SSH_KEY ubuntu@13.232.167.146 "
+        sudo docker login -u $REGISTRY_USER -p $REGISTRY_PASS &&
+        sudo docker ps -aq | xargs -r docker stop | xargs -r docker rm &&
+        sudo docker run -d -p 5000:5000 $IMAGE_NAME:$IMAGE_TAG
+      "
+
+  needs:
+    - build_image
